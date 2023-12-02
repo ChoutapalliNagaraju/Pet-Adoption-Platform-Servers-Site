@@ -81,6 +81,7 @@ async function run() {
     const petsCollection=client.db('PetAdoption').collection('pets')
     const addAdoptCollection=client.db('PetAdoption').collection('addtoadopt')
     const addDonationCampCollection=client.db('PetAdoption').collection('adddonationcamp')
+    const usersCollection=client.db('PetAdoption').collection('users')
 
 //jwt login
 app.post('/jwt',async(req,res)=>{
@@ -307,6 +308,66 @@ app.patch('/pets/:id', async (req, res) => {
   }
 });
 
+
+app.post('/users',async(req,res)=>{
+  const newuser=req.body;
+  
+  const query={email:newuser.email}
+  const existingUser=await usersCollection.findOne(query);
+  if(existingUser){
+    return res.send({message:'user already exists',insertedId:null})
+  }
+  console.log('server',newuser); 
+
+ const result=await usersCollection.insertOne(newuser);
+ res.send(result)
+ 
+})
+//get all users
+app.get('/users',async(req,res)=>{
+ 
+  const cursor=usersCollection.find();
+  const result = await cursor.toArray();
+  res.send(result);
+})
+//make admin
+app.patch('/users/admin/:id',async(req,res)=>{
+ const id =req.params.id;
+ const filter={_id:new ObjectId(id)};
+ const updatedDoc={
+  $set:{
+    role:'Admin'
+  }
+ }
+ 
+  const result = await usersCollection.updateOne(filter,updatedDoc);
+  res.send(result);
+})
+//make adopted 
+app.patch('/admin/adopted/:id',async(req,res)=>{
+  const id =req.params.id;
+  const filter={_id:new ObjectId(id)};
+  const updatedDoc={
+   $set:{
+     adopted:true,
+   }
+  }
+  
+   const result = await petsCollection.updateOne(filter,updatedDoc);
+   res.send(result);
+ })
+ app.patch('/admin/notadopted/:id',async(req,res)=>{
+  const id =req.params.id;
+  const filter={_id:new ObjectId(id)};
+  const updatedDoc={
+   $set:{
+     adopted:false,
+   }
+  }
+  
+   const result = await petsCollection.updateOne(filter,updatedDoc);
+   res.send(result);
+ })
 
 // //  add to borrowed books
 
