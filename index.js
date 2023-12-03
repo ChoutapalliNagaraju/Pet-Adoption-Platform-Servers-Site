@@ -241,13 +241,17 @@ app.post('/adddonationcamp',async(req,res)=>{
    res.send(result)
    
   })
-  app.get('/adddonationcamp',async(req,res)=>{
- 
-    const cursor=addDonationCampCollection.find();
-    const result = await cursor.toArray();
-    res.send(result);
-  })
-
+  app.get('/adddonationcamp', async (req, res) => {
+    try {
+      const cursor = addDonationCampCollection.find();
+      const result = await cursor.toArray();
+      console.log('Fetched donation camp data:', result);
+      res.send(result);
+    } catch (error) {
+      console.error('Error fetching donation camp data:', error);
+      res.status(500).send({ error: 'Internal server error' });
+    }
+  });
 app.put('/pets/:petId',async(req,res)=>{
   const id =req.params.petId;
   console.log(id);
@@ -304,6 +308,42 @@ app.patch('/pets/:id', async (req, res) => {
     res.json(updatedPet.value);
   } catch (error) {
     console.error('Error updating pet:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+// update donation camp
+// Update donation campaign route
+app.put('/updatedonationcamp/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const existingDonationCamp = await addDonationCampCollection.findOne({ _id: new ObjectId(id) });
+
+    if (!existingDonationCamp) {
+      return res.status(404).json({ error: 'Donation campaign not found' });
+    }
+
+    // Update the donation campaign fields
+    existingDonationCamp.name = req.body.name;
+    existingDonationCamp.image = req.body.image;
+    existingDonationCamp.max_donation_limit = req.body.max_donation_limit;
+    existingDonationCamp.last_donation_date = req.body.last_donation_date;
+    existingDonationCamp.shortdesp = req.body.shortdesp;
+    existingDonationCamp.longdesp = req.body.longdesp;
+    existingDonationCamp.addedDate = req.body.addedDate;
+    existingDonationCamp.userEmail = req.body.userEmail;
+    existingDonationCamp.Pause = req.body.Pause;
+
+    // Save the updated donation campaign
+    const updatedDonationCamp = await addDonationCampCollection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: existingDonationCamp },
+      { returnDocument: 'after' }
+    );
+
+    res.status(200).json({ updated: true, updatedDonationCamp });
+  } catch (error) {
+    console.error('Error updating donation campaign:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -366,6 +406,53 @@ app.patch('/admin/adopted/:id',async(req,res)=>{
   }
   
    const result = await petsCollection.updateOne(filter,updatedDoc);
+   res.send(result);
+ })
+ app.delete('/adddonationcamp/:id', async (req, res) => {
+  const id = req.params.id;
+  console.log('Deleting donation camp with ID:', id);
+
+  try {
+    const result = await addDonationCampCollection.deleteOne({ _id: new ObjectId(id) });
+    
+    if (result.deletedCount === 1) {
+      console.log('Donation camp deleted successfully.');
+      res.status(200).json({ message: 'Donation camp deleted successfully' });
+    } else {
+      console.log('Donation camp not found.');
+      res.status(404).json({ message: 'Donation camp not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting donation camp:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// pause donation
+
+app.patch('/admin/pause/:id',async(req,res)=>{
+  const id =req.params.id;
+  const filter={_id:new ObjectId(id)};
+  const updatedDoc={
+   $set:{
+     pause:true,
+   }
+  }
+  
+   const result = await addDonationCampCollection.updateOne(filter,updatedDoc);
+   res.send(result);
+ })
+
+//  resume
+app.patch('/admin/resume/:id',async(req,res)=>{
+  const id =req.params.id;
+  const filter={_id:new ObjectId(id)};
+  const updatedDoc={
+   $set:{
+     pause:false,
+   }
+  }
+  
+   const result = await addDonationCampCollection.updateOne(filter,updatedDoc);
    res.send(result);
  })
 
