@@ -7,11 +7,13 @@ const jwt =require('jsonwebtoken')
 const cookieParser=require('cookie-parser')
 require('dotenv').config()
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe =require('stripe')(process.env.STRIPE_SECRET_KEY)
 const port=process.env.PORT || 5007;
 
 //middleware
 app.use(cors({
   origin:[
+    'https://pet-adoption-platform-cc33e.web.app',
     'http://localhost:5173'
   ],
   credentials:true,
@@ -82,6 +84,7 @@ async function run() {
     const addAdoptCollection=client.db('PetAdoption').collection('addtoadopt')
     const addDonationCampCollection=client.db('PetAdoption').collection('adddonationcamp')
     const usersCollection=client.db('PetAdoption').collection('users')
+    const paymentCollection = client.db("PetAdoption").collection("payments");
 
 //jwt login
 app.post('/jwt',async(req,res)=>{
@@ -183,56 +186,7 @@ app.get('/adddonationcamp/:id',async(req,res)=>{
   const result = await  addDonationCampCollection.findOne(query);
   res.send(result);
 })
-// app.get('/books',logger,verifyToken,async(req,res)=>{
-//   console.log(req.query.email);
-//   console.log('token owner info:',req.user);
-//   if(req.user.email!==req.query.email){
-//     return res.status(403).send({message:'forbidden'})
-//   }
-//   // let quary={};
-//   // if(req.query?.email){
-//   //   quary={email:req.query.email}
-//   // }
-//   // const cursor=booksCollection.find();
-//   // const result = await cursor.toArray();
-//   const result=await booksCollection.find().toArray()
-//   res.send(result);
-// })
 
-// app.post('/books',async(req,res)=>{
-//   const newBook=req.body;
-//   console.log(newBook); 
-
-//  const result=await booksCollection.insertOne(newBook);
-//  res.send(result)
- 
-// })
-// //get by category name
-// app.get('/booksbycategory/:category_name',async(req,res)=>{
-//   const category_name = req.params.category_name;
-//   query={category_name: category_name }
-//     const result = await booksCollection.find(query).toArray();
-//   res.send(result);
-// })
-
-// get operation for update books
-// app.get('/pets/:id', async (req, res) => {
-//   const petId = req.params.id;
-
-//   try {
-//     console.log('Pet ID:', petId); // Add this line for debugging
-//     const result = await petsCollection.findOne({ _id: new ObjectId(petId) });
-
-//     if (result) {
-//       res.send(result);
-//     } else {
-//       res.status(404).send({ message: 'Pet not found' });
-//     }
-//   } catch (error) {
-//     console.error('Error fetching pet data:', error);
-//     res.status(500).send({ message: 'Internal server error' });
-//   }
-// });
 app.post('/adddonationcamp',async(req,res)=>{
     const newdonationcamp=req.body;
     console.log(newdonationcamp); 
@@ -456,87 +410,45 @@ app.patch('/admin/resume/:id',async(req,res)=>{
    res.send(result);
  })
 
-// //  add to borrowed books
 
-// app.get('/addtoborrow',async(req,res)=>{
- 
-//   const cursor=addBorrowedCollection.find();
-//   const result = await cursor.toArray();
-//   res.send(result);
-// })
+// payment intent
+app.post('/create-payment-intent', async (req, res) => {
+  const { donationAmount } = req.body;
+  const amount = parseInt(donationAmount * 100);
+  console.log(amount, 'amount inside the intent')
 
-// // remove book/return book
-// app.post('/deleteborrow/:id', async(req,res)=>{
-//   const id =req.params.id;
-//   const bookId=req.body.bookId;
-//   console.log(id);
-//   console.log(req.body.bookId);
-  
-//   const query={_id:new ObjectId(id)}
-//   const result = await addBorrowedCollection.deleteOne(query);
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: 'usd',
+    payment_method_types: ['card']
+  });
 
-//   const result2= await booksCollection.updateOne(
-//             {bookId:bookId},
-//             { $inc: { quantity: +1 } }
-//           );
-//   res.send({result,result2});
-// })
+  res.send({
+    clientSecret: paymentIntent.client_secret
+  })
+});
+
+app.post('/payments', async (req, res) => {
+  const payment = req.body;
+  console.log('payment',payment);
+  const paymentResult = await paymentCollection.insertOne(payment);
+
+  //  carefully delete each item from the cart
+  console.log('payment info', payment);
+  const query = {
+    _id: {
+      $in: payment.cartIds.map(id => new ObjectId(id))
+    }
+  };
+
+  const deleteResult = await cartCollection.deleteMany(query);
+
+  res.send({ paymentResult, deleteResult });
+})
 
 
-// //borrow and quantity reduce
-// app.post('/addtoborrow', async (req, res) => {
-//   const addtoborrow = req.body;
-//   const bookname = req.body.name;
-//   const userEmail = req.body.userEmail;
-//   console.log(bookname, userEmail);
 
-//   try {
-//     // Check if the user has already borrowed the book
-//     const output = await addBorrowedCollection.findOne({
-//       name: bookname,
-//       userEmail: userEmail,
-//     });
 
-//     if (!output)
-//      {
-//       const result = await addBorrowedCollection.insertOne(addtoborrow);
-
-//       if (result.insertedId) {
-//         const bookId = addtoborrow.bookId;
-//         console.log('bookId', bookId);
-
-//         // Decrease the quantity of the borrowed book by 1
-//         const borrowedBook = await booksCollection.findOne({ bookId: bookId });
-
-//         if (borrowedBook) {
-//           const updatedQuantity = borrowedBook.quantity - 1;
-//           console.log('updated quantity', updatedQuantity);
-
-//           if (updatedQuantity >= 0) {
-//             // Ensure quantity doesn't go below zero
-//             await booksCollection.updateOne(
-//               { bookId: bookId },
-//               { $set: { quantity: updatedQuantity } }
-//             );
-
-//             return res.status(200).json({ message: 'Book Borrowed Successfully' });
-//           } else {
-//             return res.status(400).json({ error: 'Book is out of stock' });
-//           }
-//         } else {
-//           return res.status(404).json({ error: 'Book not found' });
-//         }
-//       }
-
-//       return res.status(500).json({ error: 'Failed to borrow the book' });
-//     }
-
-//     return res.status(400).json({ error: 'You have already borrowed that book' });
-//   } catch (error) {
-//     console.error(error);
-//     return res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 
       console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
