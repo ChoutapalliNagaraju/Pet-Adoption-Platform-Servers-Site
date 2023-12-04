@@ -115,7 +115,13 @@ app.post('/jwt',async(req,res)=>{
       const result = await cursor.toArray();
       res.send(result);
   })
-
+  app.get('/petbycategory/:category',async(req,res)=>{
+    const category = req.params.category;
+    query={category:category }
+      const result = await petsCollection.find(query).toArray();
+    res.send(result);
+  })
+  
   app.get('/pets',async(req,res)=>{
     const cursor=petsCollection.find();
     const result = await cursor.toArray();
@@ -409,6 +415,36 @@ app.patch('/admin/resume/:id',async(req,res)=>{
    const result = await addDonationCampCollection.updateOne(filter,updatedDoc);
    res.send(result);
  })
+
+// accpt
+app.patch('/admin/accept/:id',async(req,res)=>{
+  const id =req.params.id;
+  const filter={_id:new ObjectId(id)};
+  const updatedDoc={
+   $set:{
+     adopt_Req:true,
+   }
+  }
+  
+   const result = await addAdoptCollection.updateOne(filter,updatedDoc);
+   res.send(result);
+ })
+
+//  reject
+app.patch('/admin/reject/:id',async(req,res)=>{
+  const id =req.params.id;
+  const filter={_id:new ObjectId(id)};
+  const updatedDoc={
+   $set:{
+     adopt_Req:false,
+   }
+  }
+  
+   const result = await addAdoptCollection.updateOne(filter,updatedDoc);
+   res.send(result);
+ })
+
+
 
 
 // payment intent
