@@ -464,6 +464,29 @@ app.delete('/payments/:id', async(req,res)=>{
   res.send(result);
 })
 
+
+//show donator
+app.get('/payments/:ownerEmail', async (req, res) => {
+  try {
+    const donators = await paymentCollection.find({ ownerEmail: req.params.ownerEmail });
+    res.json(donators);
+    console.log(req.params.ownerEmail);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// app.get('/donatorInfo/:email', async (req, res) => {
+//   try {
+//     const donator = await paymentCollection.findOne({ ownerEmail: req.params.ownerEmail });
+//     res.json(donator);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: 'Internal Server Error' });
+//   }
+// });
+
       console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
      
