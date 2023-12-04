@@ -446,9 +446,23 @@ app.post('/payments', async (req, res) => {
   res.send({ paymentResult, deleteResult });
 })
 
+// get payment
+app.get('/payments',async(req,res)=>{
+ 
+  const cursor=paymentCollection.find();
+  const result = await cursor.toArray();
+  res.send(result);
+})
 
+// pay delete
 
-
+app.delete('/payments/:id', async(req,res)=>{
+  const id =req.params.id;
+  console.log(id);
+  const query={_id:new ObjectId(id)}
+  const result = await paymentCollection.deleteOne(query);
+  res.send(result);
+})
 
       console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
